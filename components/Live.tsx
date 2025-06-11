@@ -17,12 +17,10 @@ import {
 import { shortcuts } from "@/constants";
 
 type Props = {
-  canvasRef: React.MutableRefObject<HTMLCanvasElement | null>;
-  undo: () => void;
-  redo: () => void;
+  children: React.ReactNode;
 };
 
-const Live = ({ canvasRef, undo, redo }: Props) => {
+const Live = ({ children }: Props) => {
   const [{ cursor }, updateMyPresence] = useMyPresence();
 
   const [cursorState, setcursorState] = useState<CursorState>({
@@ -31,11 +29,11 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
 
   const handlePointerMove = useCallback(
     (event: React.PointerEvent) => {
-      event.preventDefault();
+      // event.preventDefault();
 
       if (cursor === null || cursorState.mode !== CursorMode.ReactionSelector) {
-        const x = event.clientX - event.currentTarget.getBoundingClientRect().x;
-        const y = event.clientY - event.currentTarget.getBoundingClientRect().y;
+        const x = event.clientX;
+        const y = event.clientY;
 
         if (!cursor || cursor.x !== x || cursor.y !== y) {
           updateMyPresence({ cursor: { x, y } });
@@ -52,8 +50,8 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent) => {
-      const x = event.clientX - event.currentTarget.getBoundingClientRect().x;
-      const y = event.clientY - event.currentTarget.getBoundingClientRect().y;
+      const x = event.clientX;
+      const y = event.clientY;
 
       updateMyPresence({ cursor: { x, y } });
 
@@ -74,28 +72,46 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
     );
   }, []);
 
-  const handleContextMenuClick = useCallback(
-    (key: string) => {
-      switch (key) {
-        case "Chat":
-          setcursorState({
-            mode: CursorMode.Chat,
-            previousMessage: null,
-            message: "",
-          });
-          break;
-        case "Deshacer":
-          undo();
-          break;
-        case "Rehacer":
-          redo();
-          break;
-        default:
-          break;
+  useEffect(() => {
+    const handleGlobalMouseMove = (event: MouseEvent) => {
+      if (cursorState.mode !== CursorMode.ReactionSelector) {
+        const x = event.clientX;
+        const y = event.clientY;
+
+        if (!cursor || cursor.x !== x || cursor.y !== y) {
+          updateMyPresence({ cursor: { x, y } });
+        }
       }
-    },
-    [undo, redo]
-  );
+    };
+
+    const handleGlobalMouseLeave = () => {
+      setcursorState({ mode: CursorMode.Hidden });
+      updateMyPresence({ cursor: null, message: null });
+    };
+
+    // Agregar listeners globales
+    document.addEventListener("mousemove", handleGlobalMouseMove);
+    document.addEventListener("mouseleave", handleGlobalMouseLeave);
+
+    return () => {
+      document.removeEventListener("mousemove", handleGlobalMouseMove);
+      document.removeEventListener("mouseleave", handleGlobalMouseLeave);
+    };
+  }, [cursor, cursorState.mode, updateMyPresence]);
+
+  const handleContextMenuClick = useCallback((key: string) => {
+    switch (key) {
+      case "Chat":
+        setcursorState({
+          mode: CursorMode.Chat,
+          previousMessage: null,
+          message: "",
+        });
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
@@ -138,18 +154,28 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         className='relative flex h-full w-full flex-1 items-center justify-center'
+        style={{ pointerEvents: "none" }}
       >
-        <canvas ref={canvasRef} className='h-full w-full' />
+        {/* Renderizar children (GrapesJsStudio) */}
+        <div style={{ pointerEvents: "auto", width: "100%", height: "100%" }}>
+          {children}
+        </div>
 
-        {cursor && (
-          <CursorChat
-            cursor={cursor}
-            cursorState={cursorState}
-            setCursorState={setcursorState}
-            updateMyPresence={updateMyPresence}
-          />
-        )}
-        <LiveCursors />
+        {/* Overlay para elementos de colaboración */}
+        <div
+          className='pointer-events-none absolute inset-0'
+          style={{ zIndex: 9999 }}
+        >
+          {cursor && (
+            <CursorChat
+              cursor={cursor}
+              cursorState={cursorState}
+              setCursorState={setcursorState}
+              updateMyPresence={updateMyPresence}
+            />
+          )}
+          <LiveCursors />
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent className='rigth-menu-content w-40'>
         {shortcuts.map((item) => (

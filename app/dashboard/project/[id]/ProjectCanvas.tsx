@@ -34,6 +34,7 @@ import {
 import { registerFlutterWidgets } from "@/components/projects/flutter-widgets";
 import { registerFlutterFormComponents } from "@/components/projects/flutter-forms";
 import { useGrapesJSCollaboration } from "@/hooks/useGrapesJSCollaboration";
+import Live from "@/components/Live";
 
 interface EditorState {
   projectData: ProjectData;
@@ -44,10 +45,6 @@ interface EditorState {
 export default function ProjectCanvas() {
   const params = useParams();
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
-
-  // Hook para deshacer/rehacer
-  const undo = useUndo();
-  const redo = useRedo();
 
   // Estado para el editor
   const [editor, setEditor] = useState<Editor>();
@@ -164,21 +161,6 @@ export default function ProjectCanvas() {
     return () => clearInterval(interval);
   }, [editor, userId]);
 
-  // Sincronizar cambios locales con LiveBlocks
-  // useEffect(() => {
-  //   if (!editor || !tempProjectData) return;
-  //   console.log("Sincronizando cambios locales con LiveBlocks...");
-  //   // Marcar que este cambio es local para evitar ciclos
-  //   setIsLocalChange(true);
-
-  //   // Enviar los cambios a LiveBlocks
-  //   syncEditorChanges({
-  //     projectData: tempProjectData,
-  //     lastUpdated: Date.now(),
-  //     lastEditor: userId,
-  //   });
-  // }, [tempProjectData, editor, syncEditorChanges, userId]);
-
   // Mostrar notificaciones
   const showToast = (id: string) => {
     const toastConfig = {
@@ -218,18 +200,6 @@ export default function ProjectCanvas() {
     }
   }, [others.length]);
 
-  // Función para guardar manualmente
-  // const saveInstance = () => {
-  //   if (editor && tempProjectData) {
-  //     syncEditorChanges({
-  //       projectData: tempProjectData,
-  //       lastUpdated: Date.now(),
-  //       lastEditor: userId,
-  //     });
-  //     showToast("save-success");
-  //   }
-  // };
-
   useEffect(() => {
     if (!editor || !editorReady || !editorData) return;
 
@@ -268,6 +238,40 @@ export default function ProjectCanvas() {
     }
   }, [editor, editorReady, editorData, userId]);
 
+  useEffect(() => {
+    // Limpiar cualquier dato previo de GrapesJS en localStorage
+    const clearGrapesJSStorage = () => {
+      try {
+        // Eliminar específicamente el proyecto de GrapesJS
+        localStorage.removeItem("gjsProject");
+
+        // También limpiar otras claves relacionadas si existen
+        const keysToRemove = [
+          "gjsProject",
+          "gjs-", // Prefijo común de GrapesJS
+          "grapes-", // Otro prefijo posible
+        ];
+
+        // Buscar y eliminar todas las claves que coincidan
+        Object.keys(localStorage).forEach((key) => {
+          keysToRemove.forEach((prefix) => {
+            if (key.startsWith(prefix) || key === "gjsProject") {
+              localStorage.removeItem(key);
+              console.log(`Removed localStorage key: ${key}`);
+            }
+          });
+        });
+
+        console.log("GrapesJS localStorage limpiado");
+      } catch (error) {
+        console.error("Error limpiando localStorage:", error);
+      }
+    };
+
+    // Ejecutar la limpieza
+    clearGrapesJSStorage();
+  }, []); // Solo se ejecuta una vez al montar
+
   return (
     <div className='flex h-screen flex-col'>
       <div className='flex gap-5 p-1'>
@@ -275,12 +279,6 @@ export default function ProjectCanvas() {
         {/* <button className='rounded border px-2' onClick={saveInstance}>
           Guardar
         </button> */}
-        <button className='rounded border px-2' onClick={undo}>
-          Deshacer
-        </button>
-        <button className='rounded border px-2' onClick={redo}>
-          Rehacer
-        </button>
 
         {/* Indicador de usuarios conectados */}
         {others.length > 0 && (
@@ -294,51 +292,50 @@ export default function ProjectCanvas() {
         )}
       </div>
 
-      <div className='w-full flex-1 overflow-hidden'>
-        <GrapesJsStudio
-          onReady={onReady}
-          onUpdate={(projectData: ProjectData, editor: Editor) => {}}
-          options={{
-            licenseKey:
-              "af3d2b8444034aa7add74e53f516bef9a56b6d90974047198345feb229103393",
-            project: {
-              default: {
-                pages: [
-                  {
-                    name: "Página Principal",
-                    component: `<h1 style="padding: 2rem; text-align: center">
-                      Proyecto Colaborativo ${projectId}
-                    </h1>`,
-                  },
-                ],
-              },
+      <GrapesJsStudio
+        onReady={onReady}
+        onUpdate={(projectData: ProjectData, editor: Editor) => {}}
+        options={{
+          licenseKey:
+            "af3d2b8444034aa7add74e53f516bef9a56b6d90974047198345feb229103393",
+          project: {
+            default: {
+              pages: [
+                {
+                  name: "Página Principal",
+                  component: `<h1 style="padding: 2rem; text-align: center">
+                        Proyecto Colaborativo ${projectId}
+                      </h1>`,
+                },
+              ],
             },
+          },
 
-            storage: {
-              type: "self",
-              autosaveChanges: 0,
-            },
+          storage: {
+            type: "self", // o null
+            autosaveChanges: 0,
+          },
+          autosaveIntervalMs: 999999,
 
-            pages: {
-              settings: false,
-            },
+          pages: {
+            settings: false,
+          },
 
-            plugins: [
-              tableComponent.init({}),
-              listPagesComponent.init({}),
-              fsLightboxComponent.init({}),
-              lightGalleryComponent.init({}),
-              swiperComponent.init({}),
-              iconifyComponent.init({}),
-              accordionComponent.init({}),
-              flexComponent.init({}),
-              rteTinyMce.init({}),
-              canvasGridMode.init({}),
-              layoutSidebarButtons.init({}),
-            ],
-          }}
-        />
-      </div>
+          plugins: [
+            tableComponent.init({}),
+            listPagesComponent.init({}),
+            fsLightboxComponent.init({}),
+            lightGalleryComponent.init({}),
+            swiperComponent.init({}),
+            iconifyComponent.init({}),
+            accordionComponent.init({}),
+            flexComponent.init({}),
+            rteTinyMce.init({}),
+            canvasGridMode.init({}),
+            layoutSidebarButtons.init({}),
+          ],
+        }}
+      />
     </div>
   );
 }
