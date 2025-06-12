@@ -273,6 +273,13 @@ export const importApi = {
       onProgress
     );
   },
+
+  generateFromPrompt: (prompt: string) => {
+    return fetchApi("/import/generate-from-prompt", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+    });
+  },
 };
 
 export const usersRoomsApi = {

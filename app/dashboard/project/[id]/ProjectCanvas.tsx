@@ -76,7 +76,38 @@ export default function ProjectCanvas() {
     console.log("Editor GrapesJS cargado correctamente", editor);
     setEditor(editor);
 
-    if (editorData && editorData.projectData) {
+    const editorDataImport = localStorage.getItem("importedSketchObjects");
+    console.log("Datos importados desde localStorage:", editorDataImport);
+    if (editorDataImport) {
+      const page = editor.Pages.getSelected();
+      if (page) {
+        try {
+          const projectData = JSON.parse(editorDataImport) as ProjectData;
+          // Cargar datos importados desde localStorage
+          console.log("Cargando datos importados:", editorDataImport);
+
+          // Cargar el proyecto completo desde los datos importados
+          editor.loadProjectData(projectData);
+
+          console.log("Datos importados cargados correctamente");
+          const dataJsonProject = editor.getProjectData();
+          console.log(
+            "Datos del proyecto importado:",
+            JSON.stringify(dataJsonProject)
+          );
+
+          localStorage.removeItem("importedSketchObjects");
+
+          // Mostrar notificación de que se cargaron datos importados
+          setTimeout(() => {
+            showToast("data-imported");
+          }, 500);
+        } catch (error) {
+          console.error("Error al cargar datos importados:", error);
+          showToast("import-structure-error");
+        }
+      }
+    } else if (editorData && editorData.projectData) {
       try {
         console.log(
           "Cargando datos existentes desde Liveblocks...",
@@ -84,8 +115,23 @@ export default function ProjectCanvas() {
         );
 
         // Cargar el proyecto completo desde Liveblocks
-        editor.loadProjectData(editorData.projectData);
+        // editor.loadProjectData(editorData.projectData);
 
+        const page = editor.Pages.getSelected();
+        console.log("Página seleccionada:", page);
+        if (page) {
+          console.log("Restaurando componentes de la página...");
+          // Restaurar la página seleccionada después de cargar
+          const currentPage = page.getMainComponent();
+          currentPage.components().reset();
+          console.log("Componentes de la página restaurados");
+          currentPage.components(editorData.projectData.components);
+          const dataJsonProject = editor.getProjectData();
+          console.log(
+            "Datos del proyecto importado:",
+            JSON.stringify(dataJsonProject)
+          );
+        }
         console.log("Datos cargados correctamente desde Liveblocks");
 
         // Mostrar notificación de que se cargaron datos remotos
@@ -154,12 +200,12 @@ export default function ProjectCanvas() {
   };
 
   // Sincronización de respaldo cada 30 segundos
-  useEffect(() => {
-    if (!editor) return;
+  // useEffect(() => {
+  //   if (!editor) return;
 
-    const interval = setInterval(backupSync, 30000);
-    return () => clearInterval(interval);
-  }, [editor, userId]);
+  //   const interval = setInterval(backupSync, 30000);
+  //   return () => clearInterval(interval);
+  // }, [editor, userId]);
 
   // Mostrar notificaciones
   const showToast = (id: string) => {
@@ -201,6 +247,7 @@ export default function ProjectCanvas() {
   }, [others.length]);
 
   useEffect(() => {
+    console.log("Editor data actualizado:", editorData);
     if (!editor || !editorReady || !editorData) return;
 
     console.log("Detectando cambio en editorData:", editorData);
