@@ -8,9 +8,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-      - NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY_PRODUCTION=${NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY_PRODUCTION}
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api
+      - NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY= pk_dev_koKEwXH8N_3VXBINaYgb-Nwp2BlIQcpDBzMCB2HL5saG-PegvdOR6R7DPl9jUW-6
+      - NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY_PRODUCTION=pk_prod_AwWUA3oQhBKeuQLEKGkBkaiQOheL4WbhpuisaGoJBmWvwyorOxcvlRH7th2BpZuM
     restart: always
     volumes:
       - ./public:/app/public

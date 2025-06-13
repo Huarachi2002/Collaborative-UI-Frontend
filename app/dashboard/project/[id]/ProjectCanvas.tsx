@@ -214,11 +214,6 @@ export default function ProjectCanvas() {
           );
         }
         console.log("Datos cargados correctamente desde Liveblocks");
-
-        // Mostrar notificación de que se cargaron datos remotos
-        setTimeout(() => {
-          showToast("data-loaded");
-        }, 1000);
       } catch (error) {
         console.error("Error al cargar datos desde Liveblocks:", error);
 
@@ -281,12 +276,12 @@ export default function ProjectCanvas() {
   };
 
   // Sincronización de respaldo cada 30 segundos
-  // useEffect(() => {
-  //   if (!editor) return;
+  useEffect(() => {
+    if (!editor) return;
 
-  //   const interval = setInterval(backupSync, 30000);
-  //   return () => clearInterval(interval);
-  // }, [editor, userId]);
+    const interval = setInterval(backupSync, 2000);
+    return () => clearInterval(interval);
+  }, [editor, userId]);
 
   // Mostrar notificaciones
   const showToast = (id: string) => {
