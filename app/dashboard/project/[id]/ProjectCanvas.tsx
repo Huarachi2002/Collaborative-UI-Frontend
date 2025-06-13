@@ -31,10 +31,12 @@ import {
   canvasGridMode,
   layoutSidebarButtons,
 } from "@grapesjs/studio-sdk-plugins";
+import { Button } from "@/components/ui/button";
 import { registerFlutterWidgets } from "@/components/projects/flutter-widgets";
 import { registerFlutterFormComponents } from "@/components/projects/flutter-forms";
 import { useGrapesJSCollaboration } from "@/hooks/useGrapesJSCollaboration";
-import Live from "@/components/Live";
+import { exportApi } from "@/lib/api";
+import { Download } from "lucide-react";
 
 interface EditorState {
   projectData: ProjectData;
@@ -49,6 +51,9 @@ export default function ProjectCanvas() {
   // Estado para el editor
   const [editor, setEditor] = useState<Editor>();
   const [editorReady, setEditorReady] = useState(false);
+
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [exportUrl, setExportUrl] = useState<string | null>(null);
 
   const editorData = useStorage((root) => root.editorData);
 
@@ -70,6 +75,76 @@ export default function ProjectCanvas() {
     console.log("Sincronizando cambios con LiveBlocks:", data);
     storage.set("editorData", data);
   }, []);
+
+  // Añade esta función en el componente, junto con las demás funciones
+  const handleExportToFlutter = async () => {
+    if (!editor) {
+      showToast("export-error");
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+
+      // Obtener los datos del proyecto
+      const grapesJsData = editor.getProjectData();
+
+      // Preparar los datos para enviar
+      const exportData = {
+        projectName: `flutter-project-${projectId}`,
+        grapesJsData,
+      };
+
+      console.log("Exportando proyecto a Flutter:", exportData);
+
+      // Llamar a la API de exportación
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL + "/export/flutter";
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(exportData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error del servidor:", response.status, errorText);
+        throw new Error(
+          `Error en la respuesta del servidor: ${response.status} - ${errorText}`
+        );
+      }
+
+      // Obtener la respuesta como blob (archivo binario ZIP)
+      const blobData = await response.blob();
+
+      // Crear URL para descarga
+      const url = window.URL.createObjectURL(
+        new Blob([blobData], { type: "application/zip" })
+      );
+
+      // Crear y activar enlace de descarga
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `flutter-project-${projectId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Liberar URL
+      window.URL.revokeObjectURL(url);
+
+      // Guardar la URL temporal para mostrar banner opcional
+      setExportUrl(url);
+
+      showToast("export-success");
+    } catch (error) {
+      console.error("Error exportando a Flutter:", error);
+      showToast("export-error");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Función que se ejecuta cuando el editor está listo
   const onReady = (editor: Editor) => {
@@ -96,6 +171,12 @@ export default function ProjectCanvas() {
             JSON.stringify(dataJsonProject)
           );
 
+          syncEditorChanges({
+            projectData: editor.getProjectData(),
+            lastUpdated: Date.now(),
+            lastEditor: userId,
+          });
+
           localStorage.removeItem("importedSketchObjects");
 
           // Mostrar notificación de que se cargaron datos importados
@@ -115,7 +196,7 @@ export default function ProjectCanvas() {
         );
 
         // Cargar el proyecto completo desde Liveblocks
-        // editor.loadProjectData(editorData.projectData);
+        editor.loadProjectData(editorData.projectData);
 
         const page = editor.Pages.getSelected();
         console.log("Página seleccionada:", page);
@@ -224,6 +305,36 @@ export default function ProjectCanvas() {
         header: "Colaboración activa",
         content: `${others.length} usuario(s) conectado(s)`,
         variant: ToastVariant.Success,
+      },
+      "export-success": {
+        header: "Exportación exitosa",
+        content: "El proyecto se ha exportado a Flutter correctamente",
+        variant: ToastVariant.Success,
+      },
+      "export-error": {
+        header: "Error de exportación",
+        content: "No se pudo exportar el proyecto a Flutter",
+        variant: ToastVariant.Error,
+      },
+      "data-imported": {
+        header: "Importación exitosa",
+        content: "Los datos se han importado correctamente",
+        variant: ToastVariant.Success,
+      },
+      "import-structure-error": {
+        header: "Error de estructura",
+        content: "La estructura de los datos importados no es válida",
+        variant: ToastVariant.Error,
+      },
+      "data-loaded": {
+        header: "Datos cargados",
+        content: "Los datos se han cargado desde Liveblocks",
+        variant: ToastVariant.Success,
+      },
+      "data-load-error": {
+        header: "Error de carga",
+        content: "No se pudieron cargar los datos desde Liveblocks",
+        variant: ToastVariant.Error,
       },
     };
 
@@ -337,6 +448,26 @@ export default function ProjectCanvas() {
             </span>
           </div>
         )}
+
+        {/* Botón de exportación */}
+        <Button
+          onClick={handleExportToFlutter}
+          disabled={isExporting || !editor}
+          className='flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700'
+          size='sm'
+        >
+          {isExporting ? (
+            <>
+              <div className='h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
+              <span>Exportando...</span>
+            </>
+          ) : (
+            <>
+              <Download size={16} />
+              <span>Exportar a Flutter</span>
+            </>
+          )}
+        </Button>
       </div>
 
       <GrapesJsStudio
@@ -362,7 +493,6 @@ export default function ProjectCanvas() {
             type: "self", // o null
             autosaveChanges: 0,
           },
-          autosaveIntervalMs: 999999,
 
           pages: {
             settings: false,

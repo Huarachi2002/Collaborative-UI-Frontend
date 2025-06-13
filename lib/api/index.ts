@@ -339,7 +339,7 @@ export const usersApi = {
 
 export const exportApi = {
   exportProject: (data: any) =>
-    fetchApi("/export/angular", {
+    fetchApi("/export/flutter", {
       method: "POST",
       body: JSON.stringify(data),
     }),

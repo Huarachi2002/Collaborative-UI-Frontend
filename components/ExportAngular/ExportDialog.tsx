@@ -1,6 +1,5 @@
 "use client";
 
-import { exportApi } from "@/lib/api";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
